@@ -43,17 +43,34 @@ class GroqBackend:
         timeout: int = 30,
     ) -> None:
         try:
-            from openai import OpenAI
+            import openai
         except ImportError:
             raise ImportError(
-                "openai package not installed. Run: pip install openai"
+                "The `openai` package is required to use GroqBackend. "
+                "Install it with: pip install openai"
             )
-        self.model = model
-        self._client = OpenAI(
-            api_key=api_key or os.environ.get("GROQ_API_KEY"),
-            base_url=self._BASE_URL,
-            timeout=timeout,
-        )
+
+        api_key = api_key or os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY not found in environment variables.")
+
+        # The OpenAI client strictly checks for OPENAI_API_KEY in the env if you don't
+        # pass api_key explicitly to the client (even though we do). We patch the env temporarily.
+        original_env_key = os.environ.get("OPENAI_API_KEY")
+        os.environ["OPENAI_API_KEY"] = "dummy_key_to_bypass_check"
+
+        try:
+            self.model = model
+            self._client = openai.OpenAI(
+                api_key=api_key,
+                base_url=self._BASE_URL,
+                timeout=timeout,
+            )
+        finally:
+            if original_env_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_env_key
+            else:
+                del os.environ["OPENAI_API_KEY"]
 
     def complete(self, messages: list[dict[str, str]]) -> str:
         response = self._client.chat.completions.create(
