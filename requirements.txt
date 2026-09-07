@@ -1,0 +1,14 @@
+# Platform layer: API, persistence, scoring, mitigation.
+# Kept separate from requirements-detectors.txt so the service image stays
+# small and builds fast. The detector registry degrades gracefully when the
+# heavy ML dependencies are absent, and /health reports what is missing.
+
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+pydantic-settings>=2.6
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+pgvector>=0.3
+python-dotenv>=1.0
+httpx>=0.27

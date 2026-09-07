@@ -1,0 +1,13 @@
+# Detector layer. ~2.5 GB installed, mostly torch.
+# Install on top of requirements.txt when running the full detector suite:
+#   pip install -r requirements.txt -r requirements-detectors.txt
+#   python -m spacy download en_core_web_lg
+
+torch>=2.2
+transformers>=4.44
+sentencepiece
+protobuf
+presidio-analyzer
+presidio-anonymizer
+spacy>=3.7
+openai

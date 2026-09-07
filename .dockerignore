@@ -1,0 +1,9 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+.env
+model_tmp/
+jailbreak-classifier/
+dashboard/node_modules/
+dashboard/dist/

@@ -33,3 +33,7 @@ injection-classifier.zip
 jailbreak-classifier.tar.gz
 jailbreak-classifier/
 model_tmp/
+
+# ── Dashboard (Node) ──────────────────────────────────────────────────────
+node_modules/
+dashboard/dist/
