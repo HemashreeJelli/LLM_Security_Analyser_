@@ -1,124 +1,93 @@
-# LLM Security Analyzer — Prompt Injection Detector
+# LLM Security Analyzer
 
-Multi-layered, model-agnostic security assessment platform for LLM applications. 
-
-This repository contains **Detector #1 (Prompt Injection & Jailbreak Prevention)** implementing a 4-stage pipeline combining pre-processing deobfuscation, lightweight sequence classification, regex intent filtering, and LLM-as-a-Judge semantic evaluation.
+A multi-layered, modular security assessment platform for Large Language Models (LLMs), designed to scan prompts and responses for injection attacks, jailbreaks, and sensitive data leakage in real-time.
 
 ---
 
-## 🏗️ Architecture
+## 🚀 Features & Detectors Completed (Phases 1-3)
 
-```text
-Raw User Prompt
-      │
-      ▼
-┌──────────────────────────────────────────────────────────┐
-│ Layer 1: Pre-processing & Deobfuscation                 │
-│ (Base64 multi-pass, HTML entity unescape, NFKC, zero-width)│
-└──────────────────────────┬───────────────────────────────┘
-                           │ Clean Text
-                           ▼
-┌──────────────────────────────────────────────────────────┐
-│ Layer 2: DeBERTa-v2 Sequence Classifier                 │
-│ (Local Fine-Tuned Transformer Model)                    │
-└──────────────────────────┬───────────────────────────────┘
-                           │ Injection Probability Score [0.0 - 1.0]
-                           ▼
-┌──────────────────────────────────────────────────────────┐
-│ Layer 2.5: Regex Intent & Fast-Path Filter               │
-│ (Fast-paths explicit attacks / Detects technical intent) │
-└──────────────┬───────────────────────────┬───────────────┘
-               │                           │
-  CONFIRMED_INJECTION                ROUTE_TO_JUDGE
-               │                           │
-               ▼                           ▼
-       [Flag Injection]         ┌──────────────────────────┐
-                                │ Layer 3: LLM Judge       │
-                                │ (Groq / OpenAI / Gemini) │
-                                └──────────┬───────────────┘
-                                           │
-                                    Final Verdict
-```
+### 1. Prompt Injection Detector (Layered)
+* **Layer 1:** Advanced Pre-processing & Deobfuscation (Base64 decoding, HTML entity unescaping, Zero-width character stripping).
+* **Layer 2:** DeBERTa-v2 Sequence Classifier (Local HuggingFace model).
+* **Layer 2.5:** Regex Intent & Fast-Path Filter.
+* **Layer 3:** LLM-as-a-Judge for semantic analysis of "gray zone" attacks.
+
+### 2. Jailbreak Detector (Layered)
+* **Layer 1:** Rules & Regex Engine (Detects persona adoption, fictional framing, DAN patterns).
+* **Layer 2:** HuggingFace Transformer Classifier (Fine-tuned specifically on jailbreak methodologies).
+* **Layer 3:** Multi-Turn Escalation detection.
+* **Layer 4:** LLM-as-a-Judge (Human-in-the-Loop Proxy) to catch "Goal Displacement" and confident false-negatives.
+
+### 3. Data Leakage & PII Scanner
+* **Layer 1:** Regex & Checksums (Detects secrets, API keys, and uses Luhn/Verhoeff algorithms for Credit Cards & Indian Aadhaar/PAN cards).
+* **Layer 2:** Microsoft Presidio & SpaCy NER (Named Entity Recognition for natural language PII).
+* **Layer 3:** Prompt Leakage Detection (N-gram overlap and fuzzy sequence matching to ensure the LLM hasn't leaked its system prompt).
+
+### 4. Async Orchestrator & Risk Scoring Engine
+* **Concurrency:** Runs all 3 detectors simultaneously using `asyncio.gather`, achieving an average latency of ~250ms (well under the 1.5s PRD limit).
+* **Logistic Regression Scoring:** Instead of a simple linear average that dilutes critical flags, the scoring engine uses a Sigmoid activation curve `1 / (1 + exp(-logit))`. If *any* detector flags a high-confidence threat, the composite risk score mathematically snaps to >95/100 (CRITICAL).
 
 ---
 
-## 📥 Model Weights Download
+## 🧠 Model Weights Setup
 
-Due to file size limits, the fine-tuned DeBERTa model weights (`428 MB`) are hosted on Google Drive.
+Due to GitHub's file size limits, the fine-tuned Hugging Face models are excluded from tracking. You must ensure the following directories exist in your project root before running:
 
-1. **Download the model zip:** [Download `injection-classifier.zip` from Google Drive](PASTE_YOUR_GOOGLE_DRIVE_LINK_HERE)
-2. Extract the zip into the project root directory as `model_tmp/`:
-
-```powershell
-# Directory structure must look like:
-final_project/
-└── model_tmp/
-    ├── config.json
-    ├── model.safetensors
-    ├── tokenizer.json
-    └── tokenizer_config.json
-```
+1. `model_tmp/` (Prompt Injection Weights - ~428 MB)
+2. `jailbreak-classifier/` (Jailbreak Weights - ~560 MB)
 
 ---
 
-## ⚙️ Installation & Setup
+## 🛠️ Installation & Setup
 
-### 1. Clone the Repository
+### 1. Install Dependencies
 ```bash
-git clone https://github.com/HemashreeJelli/LLM_Security_Analyser-.git
-cd LLM_Security_Analyser-
+# Requires Python 3.10+
+pip install python-dotenv torch transformers sentencepiece protobuf presidio-analyzer presidio-anonymizer spacy openai
+
+# Download the SpaCy NLP model required for Presidio NER
+python -m spacy download en_core_web_lg
 ```
 
-### 2. Install Dependencies
-```bash
-pip install torch transformers sentencepiece protobuf python-dotenv openai pytest
-```
+### 2. Configure API Keys
+Copy `.env.example` to `.env` and enter your preferred LLM Judge API key (Groq is set as default for low latency):
 
-### 3. Configure API Keys
-Copy `.env.example` to `.env` and enter your preferred LLM Judge API key (Groq, OpenAI, or Gemini):
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
 ```env
-# Groq (Recommended - Free & Fast from console.groq.com)
 GROQ_API_KEY=gsk_your_groq_key_here
 ```
 
 ---
 
-## 🚀 Running the Pipeline
+## ⚡ Running the Pipeline
 
-Launch the interactive REPL:
+We have replaced the individual test scripts with a master asynchronous orchestrator. To launch the interactive REPL and test all three detectors simultaneously:
 
 ```bash
-python run_pipeline.py
+python run_pipeline_async.py
 ```
 
 ### Interactive Commands
-- **Type any prompt:** Processes the prompt through all 4 layers in real-time.
-- **Type `demo`:** Runs 5 built-in test cases demonstrating obfuscation decoding, false-positive resolution, and LLM judge routing.
-- **Type `quit`:** Exits the application.
+- **Type any prompt:** Processes your prompt through the Prompt Injection, Jailbreak, and Data Leakage layers simultaneously.
+- **`quit` or `exit`:** Shuts down the pipeline.
+
+The console will output the individual sub-scores, inner evidence structure (JSON), and the final **Composite Risk Score** and **Severity Band**.
 
 ---
 
-## 📁 Repository Structure
+## 🏗️ Repository Structure
 
 ```text
 .
 ├── detectors/
 │   ├── base.py                   # BaseDetector interface contract
-│   └── prompt_injection/         # Detector #1 Package
-│       ├── preprocessing.py      # Layer 1: Obfuscation stripper
-│       ├── classifier.py         # Layer 2: DeBERTa model wrapper
-│       ├── intent_filter.py      # Layer 2.5: Intent & pattern filter
-│       ├── llm_judge.py          # Layer 3: Semantic judge evaluator
-│       └── detector.py           # Top-level PromptInjectionDetector class
+│   ├── data_leakage/             # Detector #3 Package (PII, Secrets, Presidio)
+│   ├── jailbreak/                # Detector #2 Package (Jailbreak, Escalation)
+│   └── prompt_injection/         # Detector #1 Package (Obfuscation, DeBERTa)
 ├── llm_judge/
 │   └── backends/                 # API adapters (Groq, OpenAI, Gemini)
-├── run_pipeline.py               # Interactive CLI tester
+├── run_pipeline_async.py         # Async Master Pipeline & REPL
+├── run_jailbreak.py              # Legacy standalone test script
+├── run_leakage.py                # Legacy standalone test script
 ├── .env.example                  # Environment variable template
-└── .gitignore                    # Excludes .env and model weights
+└── .gitignore                    # Excludes .env and heavy model weights
 ```
