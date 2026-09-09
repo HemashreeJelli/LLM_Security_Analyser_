@@ -29,12 +29,16 @@ class JailbreakDetector:
     """
     detector_name: str = "jailbreak"
 
-    def __init__(self, backend: LLMBackend | None = None, **kwargs) -> None:
+    def __init__(self, backend: LLMBackend | None = None, route_all_to_judge: bool = False, judge_threshold: float = 0.8, **kwargs) -> None:
         """
         Args:
             backend: The LLMBackend to use for gray-zone confirmation (human-in-loop proxy).
+            route_all_to_judge: If True, bypasses threshold logic and evaluates ALL prompts via the LLM judge.
+            judge_threshold: If route_all_to_judge is False, routes prompts to the judge if ML confidence is < this value.
         """
         self.backend = backend
+        self.route_all_to_judge = route_all_to_judge
+        self.judge_threshold = judge_threshold
 
     def detect(
         self,
@@ -92,10 +96,11 @@ class JailbreakDetector:
                 confidences.append(esc_hit.confidence)
 
         # ── Layer 4: LLM Judge (Human-in-the-Loop) ────────────────────────────
-        # Trigger the judge if the ML model is below 0.85 (meaning we aren't 100% sure it's a jailbreak)
-        # This acts as a safety net against confident false-negatives (Goal Displacement)
+        # Configurable routing based on flags
         needs_judge = False
-        if ml_hit.confidence < 0.85:
+        if self.route_all_to_judge:
+            needs_judge = True
+        elif ml_hit.confidence < self.judge_threshold:
             needs_judge = True
             
         if needs_judge and self.backend:
@@ -129,8 +134,17 @@ class JailbreakDetector:
 
 _singleton: JailbreakDetector | None = None
 
-def get_jailbreak_detector(backend: LLMBackend | None = None, **kwargs) -> JailbreakDetector:
+def get_jailbreak_detector(
+    backend: LLMBackend | None = None,
+    route_all_to_judge: bool = False,
+    judge_threshold: float = 0.8,
+    **kwargs
+) -> JailbreakDetector:
     global _singleton
     if _singleton is None:
-        _singleton = JailbreakDetector(backend=backend)
+        _singleton = JailbreakDetector(
+            backend=backend,
+            route_all_to_judge=route_all_to_judge,
+            judge_threshold=judge_threshold
+        )
     return _singleton

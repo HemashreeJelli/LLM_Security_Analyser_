@@ -59,6 +59,10 @@ _JSON_RE = re.compile(r"\{[^{}]*\}", re.DOTALL)
 def _extract_json(text: str) -> dict:
     m = _JSON_RE.search(text)
     if not m:
+        # Check for standard safety refusals from the underlying LLM
+        refusals = ["i cannot fulfill", "i can't help with that", "i am sorry", "i'm sorry", "as an ai", "i cannot assist"]
+        if any(r in text.lower() for r in refusals):
+            return {"verdict": "INJECTION", "confidence": 1.0, "reasoning": "Judge safety filter triggered (implicit malicious intent)."}
         raise ValueError(f"No JSON object found in response: {text!r}")
     return json.loads(m.group())
 
