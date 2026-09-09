@@ -75,15 +75,14 @@ def _build_judge_backend():
     Returns None when no key is configured; the detectors accept a None backend
     and simply skip their judge layer.
     """
-    import os
-
-    if not os.getenv("GROQ_API_KEY"):
+    api_key = get_settings().groq_api_key
+    if not api_key:
         log.info("GROQ_API_KEY not set - LLM judge layer disabled")
         return None
 
     from llm_judge.backends.groq_backend import GroqBackend
 
-    return GroqBackend(model="groq/compound")
+    return GroqBackend(api_key=api_key, model="groq/compound")
 
 
 def build_registry() -> Registry:

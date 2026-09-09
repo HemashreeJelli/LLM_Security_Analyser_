@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # that establishes but then stalls mid-DDL.
     db_startup_timeout_seconds: float = 10.0
 
+    # ── LLM Judge ────────────────────────────────────────────────────────
+    groq_api_key: str = ""
+
     # ── Auth ─────────────────────────────────────────────────────────────
     # Comma-separated keys accepted on the X-API-Key header. If left empty,
     # auth is disabled entirely — convenient for local development, and the
