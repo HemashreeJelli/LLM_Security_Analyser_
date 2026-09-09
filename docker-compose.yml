@@ -14,7 +14,10 @@ services:
       POSTGRES_PASSWORD: llmsec
       POSTGRES_DB: llmsec
     ports:
-      - "5432:5432"
+      # Host port is overridable: a machine with a native PostgreSQL already on
+      # 5432 sets DB_PORT in its .env rather than editing this file. The port
+      # inside the network is always 5432, so the api service is unaffected.
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
